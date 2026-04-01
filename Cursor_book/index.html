@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Cursor_book — Pages</title>
+    <meta name="description" content="Cursor_book 프로젝트 페이지 모음" />
+    <style>
+      :root {
+        --bg: #faf8ff;
+        --text: #16161d;
+        --muted: #545266;
+        --border: rgba(20, 16, 40, 0.12);
+        --surface: rgba(255, 255, 255, 0.78);
+        --shadow: 0 16px 55px rgba(23, 18, 56, 0.12);
+        --accent: #5b6cff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Apple SD Gothic Neo",
+          "Noto Sans KR",
+          Arial,
+          sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(1100px 650px at 10% 10%, rgba(91, 108, 255, 0.18), transparent 60%),
+          radial-gradient(900px 650px at 90% 0%, rgba(34, 201, 166, 0.14), transparent 55%),
+          var(--bg);
+        line-height: 1.5;
+      }
+
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 22px 18px 40px;
+      }
+
+      header {
+        display: grid;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.03em;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .card {
+        display: grid;
+        gap: 6px;
+        padding: 16px;
+        border-radius: 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .cardTitle {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+
+      .cardDesc {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .pill {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(91, 108, 255, 0.22);
+        background: rgba(91, 108, 255, 0.12);
+        color: rgba(22, 22, 29, 0.9);
+        font-weight: 900;
+        font-size: 12px;
+      }
+
+      a:focus-visible {
+        outline: 3px solid rgba(91, 108, 255, 0.35);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <span class="pill">Cursor_book</span>
+        <h1>프로젝트 페이지 모음</h1>
+        <p>아래 링크에서 각 페이지를 확인할 수 있어요.</p>
+      </header>
+
+      <div class="grid" role="list">
+        <a class="card" role="listitem" href="./branding/">
+          <h2 class="cardTitle">Branding (GlefAI)</h2>
+          <p class="cardDesc">개인 브랜딩 모바일 랜딩 페이지</p>
+        </a>
+
+        <a class="card" role="listitem" href="./card/">
+          <h2 class="cardTitle">Card</h2>
+          <p class="cardDesc">웹 명함 페이지</p>
+        </a>
+      </div>
+    </div>
+  </body>
+</html>
+

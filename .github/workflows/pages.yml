@@ -34,9 +34,7 @@ jobs:
         run: |
           rm -rf dist
           mkdir -p dist
-          cp -R Cursor_book/branding_site/* dist/
-          mkdir -p dist/card
-          cp -R Cursor_book/card/* dist/card/
+          cp -R Cursor_book/* dist/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
