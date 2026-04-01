@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>웹 명함 - 방승욱</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <article class="card" aria-label="웹 명함">
+        <header class="card__top">
+          <button
+            id="avatarBtn"
+            class="avatar"
+            type="button"
+            aria-label="얼굴 아바타 (클릭하면 변경)"
+            title="클릭하면 아바타가 바뀝니다"
+          >
+            <canvas id="avatarCanvas" width="220" height="220"></canvas>
+          </button>
+
+          <div class="identity">
+            <h1 class="identity__name">방승욱</h1>
+            <p class="identity__role">AI 엔지니어</p>
+            <p class="identity__tagline">
+              AI 엔지니어 | su@naver.com | 010-5522-3044
+            </p>
+          </div>
+        </header>
+
+        <section class="card__bottom">
+          <div class="pill-row" aria-label="연락처">
+            <span class="pill">Email: su@naver.com</span>
+            <span class="pill">Phone: 010-5522-3044</span>
+          </div>
+          <p class="fineprint">
+            이 명함은 HTML/CSS/JS만으로 동작합니다. 아바타는 캔버스로 그린 캐릭터예요.
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
+

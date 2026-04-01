@@ -1,0 +1,122 @@
+:root{
+  --bg1:#0ea5e9;
+  --bg2:#8b5cf6;
+  --card:#0b1220cc;
+  --card-solid:#0b1220;
+  --text:#e5e7eb;
+  --muted:#a5b4fc;
+  --shadow: 0 24px 70px rgba(0,0,0,.35);
+  --radius: 22px;
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo","Noto Sans KR", "Malgun Gothic", sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(1100px 600px at 20% 10%, rgba(255,255,255,.18), transparent 55%),
+    linear-gradient(135deg, var(--bg1), var(--bg2));
+}
+
+.stage{
+  width:min(420px, 92vw);
+  padding:18px;
+}
+
+.card{
+  background: linear-gradient(180deg, var(--card-solid), var(--card));
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+
+.card__top{
+  display:flex;
+  gap:16px;
+  padding:22px 20px 16px;
+  align-items:center;
+}
+
+.avatar{
+  width:120px;
+  height:120px;
+  border-radius: 999px;
+  padding:0;
+  border:none;
+  background:
+    radial-gradient(closest-side, rgba(255,255,255,.18), rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
+  border: 1px solid rgba(255,255,255,.18);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  transition: transform .15s ease;
+}
+
+.avatar:hover{ transform: translateY(-2px) scale(1.01); }
+.avatar canvas{ width:104px; height:104px; display:block; }
+
+.identity{ flex:1; min-width:0; }
+.identity__name{
+  margin:0 0 4px;
+  font-size:22px;
+  letter-spacing:.2px;
+  line-height:1.2;
+}
+.identity__role{
+  margin:0 0 10px;
+  font-size:14px;
+  color:var(--muted);
+  font-weight:650;
+}
+.identity__tagline{
+  margin:0;
+  font-size:12.5px;
+  color:rgba(229,231,235,.92);
+  line-height:1.4;
+  word-break: break-word;
+}
+
+.card__bottom{
+  padding: 14px 20px 20px;
+  border-top: 1px solid rgba(255,255,255,.10);
+  background:
+    radial-gradient(700px 180px at 50% 0%, rgba(255,255,255,.08), transparent 60%);
+}
+
+.pill-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.pill{
+  font-size:12px;
+  padding:8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(229,231,235,.95);
+}
+
+.fineprint{
+  margin:0;
+  font-size:11.5px;
+  color:rgba(165,180,252,.9);
+  line-height:1.5;
+}
+
+@media (max-width: 360px){
+  .card__top{ flex-direction:column; align-items:flex-start; }
+  .avatar{ width:110px; height:110px; }
+  .avatar canvas{ width:98px; height:98px; }
+}
+

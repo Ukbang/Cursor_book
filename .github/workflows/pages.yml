@@ -1,10 +1,10 @@
-name: Deploy branding_site to Pages
+name: Deploy Cursor_book to Pages
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "branding_site/**"
+      - "Cursor_book/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -30,10 +30,18 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Build dist (multi-page)
+        run: |
+          rm -rf dist
+          mkdir -p dist
+          cp -R Cursor_book/branding_site/* dist/
+          mkdir -p dist/card
+          cp -R Cursor_book/card/* dist/card/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: branding_site
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment
