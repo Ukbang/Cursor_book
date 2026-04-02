@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{userId} {
+      // 닉네임 게이트는 사용자 본인만 읽고/수정 가능.
+      allow read, write: if isSelf(userId);
+    }
+
+    match /quizSessions/{sessionId} {
+      // 학습자는 세션 메타데이터를 읽을 수 있어야 합니다.
+      allow read: if true;
+
+      // 교수자(익명 Auth)는 세션을 생성할 수 있습니다.
+      allow create: if isSignedIn();
+
+      // MVP에서는 수정/삭제는 막습니다.
+      allow update, delete: if false;
+    }
+
+    match /quizAttempts/{attemptId} {
+      // 실시간 리더보드는 완료된(completed) 시도만 공개 읽기.
+      // (또는 본인 시도는 인증 사용자로 읽기 가능)
+      allow get, list: if
+        resource.data.status == 'completed' ||
+        (isSignedIn() && isSelf(resource.data.uid));
+
+      // 생성/수정은 본인 uid로 제한.
+      allow create: if
+        isSignedIn() &&
+        request.resource.data.uid is string &&
+        isSelf(request.resource.data.uid) &&
+        request.resource.data.status in ['in_progress', 'completed'];
+
+      allow update: if
+        isSignedIn() &&
+        request.resource.data.uid is string &&
+        isSelf(request.resource.data.uid) &&
+        request.resource.data.status in ['in_progress', 'completed'];
+
+      allow delete: if false;
+    }
+  }
+}
+
