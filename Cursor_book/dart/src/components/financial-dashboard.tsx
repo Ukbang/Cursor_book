@@ -143,20 +143,26 @@ export function FinancialDashboard() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
-      <h1 className="text-2xl font-bold">재무 데이터 시각화 분석 서비스</h1>
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-10">
+      <div className="rounded-3xl border border-zinc-200 bg-zinc-50/70 px-6 py-8 shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+          재무 데이터 시각화 분석 서비스
+        </h1>
+      </div>
 
-      <section className="rounded-xl border p-4">
-        <h2 className="mb-3 text-lg font-semibold">1) 회사 검색 (corp.xml 인덱스)</h2>
+      <section className="rounded-2xl border border-zinc-200 bg-white/90 p-5 shadow-sm backdrop-blur">
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+          1) 회사 검색 (corp.xml 인덱스)
+        </h2>
         <div className="flex flex-wrap gap-2">
           <input
-            className="min-w-[260px] flex-1 rounded-md border px-3 py-2"
+            className="min-w-[260px] flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-zinc-900/15"
             placeholder="회사명 입력 (예: 삼성전자)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <button
-            className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-50"
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50"
             onClick={searchCorp}
             disabled={loadingSearch}
           >
@@ -167,13 +173,15 @@ export function FinancialDashboard() {
           {corpResults.map((corp) => (
             <button
               key={corp.corpCode}
-              className={`rounded-md border p-3 text-left ${
-                selectedCorp?.corpCode === corp.corpCode ? "border-blue-600 bg-blue-50" : ""
+              className={`rounded-xl border p-3 text-left transition ${
+                selectedCorp?.corpCode === corp.corpCode
+                  ? "border-zinc-900 bg-zinc-100"
+                  : "border-zinc-200 bg-white hover:border-zinc-300"
               }`}
               onClick={() => setSelectedCorp(corp)}
             >
-              <p className="font-semibold">{corp.corpName}</p>
-              <p className="text-sm text-gray-600">
+              <p className="font-semibold text-zinc-900">{corp.corpName}</p>
+              <p className="text-sm text-zinc-600">
                 corp_code: {corp.corpCode} / stock: {corp.stockCode || "-"}
               </p>
             </button>
@@ -181,17 +189,17 @@ export function FinancialDashboard() {
         </div>
       </section>
 
-      <section className="rounded-xl border p-4">
-        <h2 className="mb-3 text-lg font-semibold">2) 오픈다트 재무 시각화</h2>
+      <section className="rounded-2xl border border-zinc-200 bg-white/90 p-5 shadow-sm backdrop-blur">
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900">2) 오픈다트 재무 시각화</h2>
         <div className="flex flex-wrap gap-2">
           <input
-            className="w-36 rounded-md border px-3 py-2"
+            className="w-36 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-zinc-900/15"
             value={year}
             onChange={(e) => setYear(e.target.value)}
             placeholder="사업연도 (예: 2024)"
           />
           <select
-            className="rounded-md border px-3 py-2"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-zinc-900/15"
             value={reprtCode}
             onChange={(e) => setReprtCode(e.target.value)}
           >
@@ -202,7 +210,7 @@ export function FinancialDashboard() {
             ))}
           </select>
           <button
-            className="rounded-md bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50"
             onClick={loadFinancialData}
             disabled={!selectedCorp || loadingData}
           >
@@ -227,23 +235,27 @@ export function FinancialDashboard() {
         )}
       </section>
 
-      <section className="rounded-xl border p-4">
-        <h2 className="mb-3 text-lg font-semibold">3) Gemini 쉬운 해석</h2>
+      <section className="rounded-2xl border border-zinc-200 bg-white/90 p-5 shadow-sm backdrop-blur">
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900">3) Gemini 쉬운 해석</h2>
         <button
-          className="rounded-md bg-emerald-700 px-4 py-2 text-white disabled:opacity-50"
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
           onClick={analyzeWithAI}
           disabled={!data?.list?.length || loadingAnalysis}
         >
           {loadingAnalysis ? "분석 중..." : "AI 분석하기"}
         </button>
         {analysis ? (
-          <div className="mt-4 whitespace-pre-wrap rounded-md bg-emerald-50 p-4 text-sm leading-7">
+          <div className="mt-4 whitespace-pre-wrap rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-7 text-emerald-950">
             {analysis}
           </div>
         ) : null}
       </section>
 
-      {error ? <p className="rounded-md bg-red-50 p-3 text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
     </main>
   );
 }
