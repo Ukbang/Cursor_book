@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
 import {
   addDoc,
   collection,
@@ -26,6 +28,33 @@ type QuizSession = {
   questionCount: number;
   createdByNickname?: string;
 };
+
+const QuizResponseSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        id: z.string(),
+        prompt: z.string().min(1),
+        options: z.tuple([
+          z.string().min(1),
+          z.string().min(1),
+          z.string().min(1),
+          z.string().min(1),
+        ]),
+        correctOptionIndex: z.number().int().min(0).max(3),
+      })
+    )
+    .min(1),
+});
+
+function stripCodeFences(text: string) {
+  return text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
+}
 
 export default function LearnerPage() {
   return (
@@ -143,28 +172,39 @@ function LearnerInner({ uid, nickname }: { uid: string; nickname: string }) {
     setSubmittedScore(null);
 
     try {
-      const res = await fetch("/api/generate-quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: session.topic,
-          questionCount: session.questionCount,
-        }),
-      });
-
-      const data = (await res.json()) as unknown as {
-        error?: string;
-        questions?: QuizQuestion[];
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || "퀴즈 생성에 실패했습니다.");
-      }
-      if (!data.questions || data.questions.length === 0) {
-        throw new Error("퀴즈 데이터가 비어 있어요.");
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "NEXT_PUBLIC_GEMINI_API_KEY가 설정되지 않았습니다. Spark Hosting에서는 브라우저에서 Gemini를 호출합니다."
+        );
       }
 
-      const questionsPayload = data.questions;
+      const modelName =
+        process.env.NEXT_PUBLIC_GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+      const client = new GoogleGenerativeAI(apiKey);
+      const model = client.getGenerativeModel({ model: modelName });
+      const prompt = `
+너는 교육용 퀴즈 생성기다.
+아래 주제에 대해 사지선다형 객관식 퀴즈 ${session.questionCount}개를 생성해라.
+응답은 JSON만 출력한다.
+{
+  "questions": [
+    {
+      "id": "q1",
+      "prompt": "질문",
+      "options": ["보기1","보기2","보기3","보기4"],
+      "correctOptionIndex": 0
+    }
+  ]
+}
+주제: ${session.topic}
+`.trim();
+
+      const result = await model.generateContent(prompt);
+      const jsonText = stripCodeFences(result.response.text());
+      const parsed = JSON.parse(jsonText) as unknown;
+      const data = QuizResponseSchema.parse(parsed);
+      const questionsPayload = data.questions as QuizQuestion[];
       const attemptRef = await addDoc(collection(db, "quizAttempts"), {
         sessionId: sessionIdInput.trim(),
         uid,
