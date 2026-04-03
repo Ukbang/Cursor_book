@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>투게더리안 - 로그인</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="brand-icon">🤝</div>
+        <h1>투게더리안</h1>
+        <p>함께 성장하는 스터디 매칭 플랫폼</p>
+      </div>
+
+      <form class="auth-form" id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="email">이메일</label>
+          <input
+            type="email"
+            id="email"
+            class="form-control"
+            placeholder="이메일을 입력하세요"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">비밀번호</label>
+          <input
+            type="password"
+            id="password"
+            class="form-control"
+            placeholder="비밀번호를 입력하세요"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
+        <p id="error-msg" class="form-error" style="display:none;"></p>
+
+        <button type="submit" class="btn btn-primary btn-lg w-full" id="login-btn">
+          로그인
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        아직 계정이 없으신가요?
+        <a href="signup.html">회원가입</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { loginUser, redirectIfLoggedIn } from "./js/auth.js";
+    import { showToast, showLoading, hideLoading } from "./js/utils.js";
+
+    redirectIfLoggedIn();
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const errorMsg = document.getElementById("error-msg");
+      const btn = document.getElementById("login-btn");
+
+      errorMsg.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "로그인 중...";
+      showLoading();
+
+      try {
+        await loginUser(email, password);
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        hideLoading();
+        btn.disabled = false;
+        btn.textContent = "로그인";
+        let msg = "로그인에 실패했습니다.";
+        if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+          msg = "이메일 또는 비밀번호가 올바르지 않습니다.";
+        } else if (err.code === "auth/too-many-requests") {
+          msg = "너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.";
+        }
+        errorMsg.textContent = msg;
+        errorMsg.style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>

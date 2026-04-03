@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>투게더리안 - 내 스터디 관리</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="dashboard.html" class="navbar-brand">
+        <div class="brand-icon">🤝</div>
+        투게더리안
+      </a>
+      <ul class="navbar-nav">
+        <li><a href="dashboard.html">🏠 홈</a></li>
+        <li><a href="create-study.html">✏️ 스터디 개설</a></li>
+        <li><a href="manage-study.html" class="active">📋 내 스터디</a></li>
+        <li><div id="nav-user"></div></li>
+        <li><button id="logout-btn" class="btn btn-secondary btn-sm">로그아웃</button></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-container">
+    <div class="page-header">
+      <a href="dashboard.html" class="back-btn">← 목록으로</a>
+      <h2 style="margin-top:16px;">내 스터디 관리</h2>
+      <p class="text-muted" style="margin-top:4px;font-size:0.9rem;">신청자를 승인하거나 거절하고 참가자 명단을 다운로드하세요</p>
+    </div>
+
+    <div id="content">
+      <div class="flex-center" style="min-height:300px;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, logoutUser, renderNavUser } from "./js/auth.js";
+    import {
+      getMyStudies,
+      getApplicationsForStudy,
+      getApprovedParticipants,
+      updateApplicationStatus,
+      getCategoryLabel,
+      getCategoryClass
+    } from "./js/studies.js";
+    import { showToast, showLoading, hideLoading, downloadCSV, formatDate } from "./js/utils.js";
+
+    let currentUser = null;
+    let myStudies = [];
+    let currentStudyIdx = 0;
+
+    async function init() {
+      showLoading();
+      const user = await requireAuth();
+      if (!user) return;
+      currentUser = user;
+      renderNavUser(user);
+
+      try {
+        myStudies = await getMyStudies(user.uid);
+      } catch (err) {
+        console.error(err);
+        showToast("스터디 목록 로딩 실패", "error");
+      } finally {
+        hideLoading();
+      }
+
+      renderContent();
+      document.getElementById("logout-btn").addEventListener("click", () => logoutUser());
+    }
+
+    function renderContent() {
+      const content = document.getElementById("content");
+
+      if (myStudies.length === 0) {
+        content.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📚</div>
+            <h3>개설한 스터디가 없습니다</h3>
+            <p class="text-muted">새로운 스터디를 만들어 멤버를 모집해보세요</p>
+            <a href="create-study.html" class="btn btn-primary mt-2">스터디 개설하기</a>
+          </div>
+        `;
+        return;
+      }
+
+      content.innerHTML = `
+        <div class="study-tabs" id="study-tabs">
+          ${myStudies.map((s, i) => `
+            <button
+              class="study-tab ${i === currentStudyIdx ? "active" : ""}"
+              data-idx="${i}"
+            >
+              ${escHtml(s.title)}
+            </button>
+          `).join("")}
+        </div>
+        <div id="study-panel"></div>
+      `;
+
+      document.getElementById("study-tabs").querySelectorAll(".study-tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          currentStudyIdx = parseInt(btn.dataset.idx);
+          document.querySelectorAll(".study-tab").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          loadStudyPanel(myStudies[currentStudyIdx]);
+        });
+      });
+
+      loadStudyPanel(myStudies[currentStudyIdx]);
+    }
+
+    async function loadStudyPanel(study) {
+      const panel = document.getElementById("study-panel");
+      panel.innerHTML = `<div class="flex-center" style="min-height:200px;"><div class="spinner"></div></div>`;
+
+      showLoading();
+      try {
+        const apps = await getApplicationsForStudy(study.id);
+        renderStudyPanel(study, apps, panel);
+      } catch (err) {
+        console.error(err);
+        panel.innerHTML = `<p class="form-error">신청자 목록을 불러오지 못했습니다.</p>`;
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderStudyPanel(study, apps, panel) {
+      const catClass = getCategoryClass(study.category);
+      const catLabel = getCategoryLabel(study.category);
+
+      const pending = apps.filter(a => a.status === "pending");
+      const approved = apps.filter(a => a.status === "approved");
+      const rejected = apps.filter(a => a.status === "rejected");
+
+      panel.innerHTML = `
+        <!-- 스터디 요약 카드 -->
+        <div class="detail-card mb-3" style="margin-bottom:24px;">
+          <div class="detail-card-body" style="padding:20px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                  <span class="card-category ${catClass}">${catLabel}</span>
+                  <span class="card-status ${study.currentMembers >= study.maxMembers ? "status-closed" : "status-open"}">
+                    ${study.currentMembers >= study.maxMembers ? "마감" : "모집 중"}
+                  </span>
+                </div>
+                <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${escHtml(study.title)}</h3>
+                <p style="font-size:0.85rem;color:var(--text-muted);">
+                  👥 ${study.currentMembers}/${study.maxMembers}명 모집
+                  ${study.schedule ? ` · 📅 ${escHtml(study.schedule)}` : ""}
+                  ${study.location ? ` · 📍 ${escHtml(study.location)}` : ""}
+                </p>
+              </div>
+              <button class="btn btn-outline btn-sm" id="csv-btn-${study.id}" data-study-id="${study.id}" data-study-title="${escHtml(study.title)}">
+                📥 참가자 명단 CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 통계 -->
+        <div class="manage-header">
+          <h3 style="font-size:1rem;font-weight:700;">신청자 현황</h3>
+          <div class="manage-stats">
+            <div class="stat-chip">⏳ 대기 ${pending.length}명</div>
+            <div class="stat-chip" style="background:rgba(16,185,129,0.1);color:var(--success);">✅ 승인 ${approved.length}명</div>
+            <div class="stat-chip" style="background:rgba(239,68,68,0.1);color:var(--danger);">❌ 거절 ${rejected.length}명</div>
+          </div>
+        </div>
+
+        <!-- 신청자 목록 -->
+        <div class="applicant-list" id="applicant-list-${study.id}">
+          ${apps.length === 0 ? `
+            <div class="empty-state" style="padding:48px 24px;">
+              <div class="icon">🔔</div>
+              <h3>아직 신청자가 없습니다</h3>
+              <p class="text-muted">스터디 링크를 공유해서 멤버를 모집해보세요</p>
+            </div>
+          ` : apps.map(app => renderApplicantCard(app, study)).join("")}
+        </div>
+      `;
+
+      // CSV 다운로드 이벤트
+      document.getElementById(`csv-btn-${study.id}`)?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = "다운로드 중...";
+        showLoading();
+        try {
+          const participants = await getApprovedParticipants(study.id);
+          if (participants.length === 0) {
+            showToast("승인된 참가자가 없습니다.", "info");
+            return;
+          }
+          const rows = [
+            ["이름", "이메일", "신청일", "상태"],
+            ...participants.map(p => [
+              p.userName || "",
+              p.userEmail || "",
+              formatDate(p.appliedAt),
+              "승인"
+            ])
+          ];
+          const filename = `${study.title}_참가자명단.csv`;
+          downloadCSV(rows, filename);
+          showToast(`${participants.length}명의 참가자 명단을 다운로드했습니다.`, "success");
+        } catch (err) {
+          console.error(err);
+          showToast("다운로드에 실패했습니다.", "error");
+        } finally {
+          hideLoading();
+          btn.disabled = false;
+          btn.innerHTML = "📥 참가자 명단 CSV";
+        }
+      });
+
+      // 승인/거절 버튼 이벤트
+      panel.querySelectorAll(".approve-btn").forEach(btn => {
+        btn.addEventListener("click", () => handleStatusUpdate(btn.dataset.appId, "approved", study));
+      });
+
+      panel.querySelectorAll(".reject-btn").forEach(btn => {
+        btn.addEventListener("click", () => handleStatusUpdate(btn.dataset.appId, "rejected", study));
+      });
+    }
+
+    function renderApplicantCard(app, study) {
+      const initial = (app.userName || app.userEmail || "?").charAt(0).toUpperCase();
+      const statusMap = {
+        pending: { cls: "badge-pending", icon: "⏳", text: "대기 중" },
+        approved: { cls: "badge-approved", icon: "✅", text: "승인됨" },
+        rejected: { cls: "badge-rejected", icon: "❌", text: "거절됨" }
+      };
+      const s = statusMap[app.status] || statusMap.pending;
+
+      const actionBtns = app.status === "pending" ? `
+        <button class="btn btn-success btn-sm approve-btn" data-app-id="${app.id}">승인</button>
+        <button class="btn btn-danger btn-sm reject-btn" data-app-id="${app.id}">거절</button>
+      ` : app.status === "approved" ? `
+        <button class="btn btn-danger btn-sm reject-btn" data-app-id="${app.id}" style="font-size:0.78rem;">승인 취소</button>
+      ` : `
+        <button class="btn btn-success btn-sm approve-btn" data-app-id="${app.id}" style="font-size:0.78rem;">재승인</button>
+      `;
+
+      return `
+        <div class="applicant-card" id="app-card-${app.id}">
+          <div class="applicant-avatar">${initial}</div>
+          <div class="applicant-info">
+            <div class="applicant-name">${escHtml(app.userName || "이름 없음")}</div>
+            <div class="applicant-email">✉️ ${escHtml(app.userEmail || "")}</div>
+            ${app.message ? `<div class="applicant-message">"${escHtml(app.message)}"</div>` : ""}
+            <div class="applicant-date">신청일: ${formatDate(app.appliedAt)}</div>
+          </div>
+          <div class="applicant-actions">
+            <span class="status-badge ${s.cls}">${s.icon} ${s.text}</span>
+            <div style="display:flex;gap:6px;">
+              ${actionBtns}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleStatusUpdate(appId, newStatus, study) {
+      const card = document.getElementById(`app-card-${appId}`);
+      if (!card) return;
+
+      const btns = card.querySelectorAll("button");
+      btns.forEach(b => b.disabled = true);
+      showLoading();
+
+      try {
+        await updateApplicationStatus(appId, newStatus, study.id);
+        const statusText = newStatus === "approved" ? "승인" : "거절";
+        showToast(`신청이 ${statusText}되었습니다.`, "success");
+
+        // 스터디 목록 새로고침 (member count 업데이트)
+        myStudies = await getMyStudies(currentUser.uid);
+        await loadStudyPanel(myStudies[currentStudyIdx]);
+      } catch (err) {
+        console.error(err);
+        showToast("처리에 실패했습니다.", "error");
+        btns.forEach(b => b.disabled = false);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    init();
+  </script>
+</body>
+</html>

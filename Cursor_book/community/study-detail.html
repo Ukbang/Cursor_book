@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>투게더리안 - 스터디 상세</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="dashboard.html" class="navbar-brand">
+        <div class="brand-icon">🤝</div>
+        투게더리안
+      </a>
+      <ul class="navbar-nav">
+        <li><a href="dashboard.html">🏠 홈</a></li>
+        <li><a href="create-study.html">✏️ 스터디 개설</a></li>
+        <li><a href="manage-study.html">📋 내 스터디</a></li>
+        <li><div id="nav-user"></div></li>
+        <li><button id="logout-btn" class="btn btn-secondary btn-sm">로그아웃</button></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-container">
+    <!-- Back button -->
+    <div class="page-header">
+      <div class="page-header-top">
+        <a href="dashboard.html" class="back-btn">← 목록으로</a>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="content">
+      <div class="flex-center" style="min-height:300px;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, logoutUser, renderNavUser } from "./js/auth.js";
+    import {
+      getStudy, applyToStudy, getMyApplication, getCategoryLabel, getCategoryClass
+    } from "./js/studies.js";
+    import { showToast, showLoading, hideLoading, formatDate } from "./js/utils.js";
+
+    const params = new URLSearchParams(location.search);
+    const studyId = params.get("id");
+
+    async function init() {
+      if (!studyId) {
+        window.location.href = "dashboard.html";
+        return;
+      }
+
+      showLoading();
+      const user = await requireAuth();
+      if (!user) return;
+      renderNavUser(user);
+
+      try {
+        const [study, myApp] = await Promise.all([
+          getStudy(studyId),
+          getMyApplication(studyId, user.uid)
+        ]);
+
+        if (!study) {
+          document.getElementById("content").innerHTML = `
+            <div class="empty-state"><div class="icon">😕</div>
+            <h3>스터디를 찾을 수 없습니다</h3>
+            <a href="dashboard.html" class="btn btn-primary mt-2">목록으로</a></div>
+          `;
+          return;
+        }
+
+        renderDetail(study, myApp, user);
+      } catch (err) {
+        console.error(err);
+        showToast("오류가 발생했습니다.", "error");
+      } finally {
+        hideLoading();
+      }
+
+      document.getElementById("logout-btn").addEventListener("click", () => logoutUser());
+    }
+
+    function renderDetail(study, myApp, user) {
+      const catClass = getCategoryClass(study.category);
+      const catLabel = getCategoryLabel(study.category);
+      const isFull = study.currentMembers >= study.maxMembers;
+      const isLeader = study.leaderId === user.uid;
+      const fillPct = study.maxMembers > 0
+        ? Math.min(100, Math.round((study.currentMembers / study.maxMembers) * 100))
+        : 0;
+      const tags = study.tags || [];
+
+      let applySection = "";
+
+      if (isLeader) {
+        applySection = `
+          <div class="apply-status approved" style="margin-bottom:0;">
+            👑 내가 개설한 스터디입니다
+          </div>
+          <a href="manage-study.html" class="btn btn-outline w-full mt-2">신청자 관리</a>
+        `;
+      } else if (myApp) {
+        const statusMap = {
+          pending: { cls: "pending", icon: "⏳", text: "검토 중" },
+          approved: { cls: "approved", icon: "✅", text: "승인됨" },
+          rejected: { cls: "rejected", icon: "❌", text: "거절됨" }
+        };
+        const s = statusMap[myApp.status] || statusMap.pending;
+        applySection = `
+          <div class="apply-status ${s.cls}">${s.icon} 신청 상태: ${s.text}</div>
+          <p class="form-hint text-center">신청일: ${formatDate(myApp.appliedAt)}</p>
+        `;
+      } else if (isFull) {
+        applySection = `
+          <button class="btn btn-secondary w-full" disabled>
+            정원이 마감되었습니다
+          </button>
+        `;
+      } else {
+        applySection = `
+          <form id="apply-form">
+            <div class="form-group mb-2">
+              <label class="form-label" for="apply-msg">신청 메시지</label>
+              <textarea
+                id="apply-msg"
+                class="form-control"
+                rows="4"
+                placeholder="스터디에 참여하고 싶은 이유나 자기소개를 적어주세요..."
+              ></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-full" id="apply-btn">
+              참여 신청하기
+            </button>
+          </form>
+        `;
+      }
+
+      document.getElementById("content").innerHTML = `
+        <div class="study-detail-layout">
+          <!-- 왼쪽: 스터디 정보 -->
+          <div>
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+                  <span class="card-category ${catClass}">${catLabel}</span>
+                  <span class="card-status ${isFull ? "status-closed" : "status-open"}">
+                    ${isFull ? "마감" : "모집 중"}
+                  </span>
+                </div>
+                <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:8px;">${escHtml(study.title)}</h2>
+                <div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:0.9rem;">
+                  <span>👤 모임장: <strong>${escHtml(study.leaderName || "")}</strong></span>
+                </div>
+              </div>
+
+              <div class="detail-card-body">
+                <div class="detail-meta-grid">
+                  <div class="detail-meta-item">
+                    <span class="label">모집 인원</span>
+                    <span class="value">👥 ${study.currentMembers} / ${study.maxMembers}명</span>
+                  </div>
+                  ${study.schedule ? `<div class="detail-meta-item"><span class="label">일정</span><span class="value">📅 ${escHtml(study.schedule)}</span></div>` : ""}
+                  ${study.location ? `<div class="detail-meta-item"><span class="label">장소</span><span class="value">📍 ${escHtml(study.location)}</span></div>` : ""}
+                  <div class="detail-meta-item">
+                    <span class="label">모집률</span>
+                    <span class="value">
+                      <span>${fillPct}%</span>
+                      <div class="member-count" style="margin-top:4px;">
+                        <div class="bar" style="width:100px;"><div class="bar-fill" style="width:${fillPct}%"></div></div>
+                      </div>
+                    </span>
+                  </div>
+                </div>
+
+                ${study.description ? `
+                  <div class="detail-section">
+                    <h4>스터디 소개</h4>
+                    <p>${escHtml(study.description).replace(/\n/g, "<br>")}</p>
+                  </div>
+                ` : ""}
+
+                ${tags.length ? `
+                  <div class="detail-section">
+                    <h4>태그</h4>
+                    <div class="card-tags">${tags.map(t => `<span class="tag">#${escHtml(t)}</span>`).join("")}</div>
+                  </div>
+                ` : ""}
+              </div>
+            </div>
+          </div>
+
+          <!-- 오른쪽: 신청 카드 -->
+          <div class="apply-card">
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3 style="font-size:1.05rem;">스터디 참여 신청</h3>
+              </div>
+              <div class="detail-card-body">
+                ${applySection}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 신청 폼 이벤트
+      const form = document.getElementById("apply-form");
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const message = document.getElementById("apply-msg").value.trim();
+          const btn = document.getElementById("apply-btn");
+          btn.disabled = true;
+          btn.textContent = "신청 중...";
+          showLoading();
+          try {
+            await applyToStudy(studyId, study.title, user, message);
+            showToast("참여 신청이 완료되었습니다! 모임장의 승인을 기다려주세요.", "success");
+            setTimeout(() => location.reload(), 1500);
+          } catch (err) {
+            hideLoading();
+            btn.disabled = false;
+            btn.textContent = "참여 신청하기";
+            showToast(err.message || "신청에 실패했습니다.", "error");
+          }
+        });
+      }
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    init();
+  </script>
+</body>
+</html>

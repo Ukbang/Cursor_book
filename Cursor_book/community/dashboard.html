@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>투게더리안 - 스터디 목록</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="dashboard.html" class="navbar-brand">
+        <div class="brand-icon">🤝</div>
+        투게더리안
+      </a>
+      <ul class="navbar-nav">
+        <li><a href="dashboard.html" class="active">🏠 홈</a></li>
+        <li><a href="create-study.html">✏️ 스터디 개설</a></li>
+        <li><a href="manage-study.html">📋 내 스터디</a></li>
+        <li><div id="nav-user"></div></li>
+        <li><button id="logout-btn" class="btn btn-secondary btn-sm">로그아웃</button></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>나에게 맞는 스터디를 찾아보세요</h1>
+      <p>다양한 분야의 스터디원들과 함께 성장하는 플랫폼, 투게더리안</p>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="스터디 제목, 키워드 검색..." />
+        <button id="search-btn">검색</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter Tabs -->
+  <div class="filter-section">
+    <div class="filter-tabs" id="category-tabs">
+      <!-- JS로 렌더링 -->
+    </div>
+  </div>
+
+  <!-- Study List -->
+  <div class="page-container">
+    <div class="studies-header">
+      <p class="studies-count">스터디 <span id="study-count">0</span>개</p>
+      <a href="create-study.html" class="btn btn-primary btn-sm">+ 스터디 개설</a>
+    </div>
+    <div class="studies-grid" id="studies-grid">
+      <!-- JS로 렌더링 -->
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, logoutUser, renderNavUser } from "./js/auth.js";
+    import { getStudies, CATEGORIES, getCategoryLabel, getCategoryClass } from "./js/studies.js";
+    import { showToast, showLoading, hideLoading } from "./js/utils.js";
+
+    let currentCategory = "all";
+    let currentKeyword = "";
+
+    async function init() {
+      showLoading();
+      const user = await requireAuth();
+      if (!user) return;
+      renderNavUser(user);
+      hideLoading();
+
+      renderCategoryTabs();
+      await loadStudies();
+
+      document.getElementById("logout-btn").addEventListener("click", () => logoutUser());
+
+      document.getElementById("search-btn").addEventListener("click", () => {
+        currentKeyword = document.getElementById("search-input").value.trim();
+        loadStudies();
+      });
+
+      document.getElementById("search-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          currentKeyword = e.target.value.trim();
+          loadStudies();
+        }
+      });
+    }
+
+    function renderCategoryTabs() {
+      const container = document.getElementById("category-tabs");
+      container.innerHTML = CATEGORIES.map(cat => `
+        <button
+          class="filter-tab ${cat.id === currentCategory ? "active" : ""}"
+          data-category="${cat.id}"
+        >
+          ${cat.icon} ${cat.label}
+        </button>
+      `).join("");
+
+      container.querySelectorAll(".filter-tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          currentCategory = btn.dataset.category;
+          container.querySelectorAll(".filter-tab").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          loadStudies();
+        });
+      });
+    }
+
+    async function loadStudies() {
+      showLoading();
+      try {
+        const studies = await getStudies(currentCategory, currentKeyword);
+        renderStudies(studies);
+        document.getElementById("study-count").textContent = studies.length;
+      } catch (err) {
+        console.error(err);
+        showToast("스터디 목록을 불러오는데 실패했습니다.", "error");
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderStudies(studies) {
+      const grid = document.getElementById("studies-grid");
+
+      if (studies.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <h3>스터디를 찾을 수 없습니다</h3>
+            <p class="text-muted">다른 카테고리를 선택하거나 직접 스터디를 개설해보세요</p>
+            <a href="create-study.html" class="btn btn-primary mt-2">스터디 개설하기</a>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = studies.map(study => {
+        const catClass = getCategoryClass(study.category);
+        const catLabel = getCategoryLabel(study.category);
+        const fillPct = study.maxMembers > 0
+          ? Math.min(100, Math.round((study.currentMembers / study.maxMembers) * 100))
+          : 0;
+        const isFull = study.currentMembers >= study.maxMembers;
+        const tags = (study.tags || []).slice(0, 3);
+
+        return `
+          <article class="study-card">
+            <div class="card-header">
+              <span class="card-category ${catClass}">${catLabel}</span>
+              <span class="card-status ${isFull ? "status-closed" : "status-open"}">
+                ${isFull ? "마감" : "모집 중"}
+              </span>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">${escHtml(study.title)}</h3>
+              <p class="card-desc">${escHtml(study.description || "")}</p>
+              <div class="card-meta">
+                <div class="card-meta-item">
+                  <span class="icon">👤</span>
+                  <span>모임장: ${escHtml(study.leaderName || "")}</span>
+                </div>
+                ${study.schedule ? `<div class="card-meta-item"><span class="icon">📅</span><span>${escHtml(study.schedule)}</span></div>` : ""}
+                ${study.location ? `<div class="card-meta-item"><span class="icon">📍</span><span>${escHtml(study.location)}</span></div>` : ""}
+              </div>
+              ${tags.length ? `<div class="card-tags">${tags.map(t => `<span class="tag">#${escHtml(t)}</span>`).join("")}</div>` : ""}
+            </div>
+            <div class="card-footer">
+              <div class="member-count">
+                <span>👥</span>
+                <span class="count">${study.currentMembers}/${study.maxMembers}</span>
+                <div class="bar"><div class="bar-fill" style="width:${fillPct}%"></div></div>
+              </div>
+              <a href="study-detail.html?id=${study.id}" class="btn btn-primary btn-sm">자세히 보기</a>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    init();
+  </script>
+</body>
+</html>
