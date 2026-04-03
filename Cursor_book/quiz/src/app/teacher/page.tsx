@@ -2,9 +2,45 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { NicknameGate } from "@/components/NicknameGate";
+
+type QuizQuestion = {
+  id: string;
+  prompt: string;
+  options: [string, string, string, string];
+  correctOptionIndex: number;
+};
+
+const QuizResponseSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        id: z.string(),
+        prompt: z.string().min(1),
+        options: z.tuple([
+          z.string().min(1),
+          z.string().min(1),
+          z.string().min(1),
+          z.string().min(1),
+        ]),
+        correctOptionIndex: z.number().int().min(0).max(3),
+      })
+    )
+    .min(1),
+});
+
+function stripCodeFences(text: string) {
+  return text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
+}
 
 export default function TeacherPage() {
   return (
@@ -23,19 +59,23 @@ function TeacherInner({
 }) {
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("gemini-2.5-flash");
   const [creating, setCreating] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canCreate = useMemo(() => {
     const t = topic.trim();
-    return t.length >= 1 && t.length <= 200 && questionCount >= 1;
-  }, [topic, questionCount]);
+    const k = geminiApiKey.trim();
+    return t.length >= 1 && t.length <= 200 && questionCount >= 1 && k.length > 0;
+  }, [topic, questionCount, geminiApiKey]);
 
   const onCreate = async () => {
     setError(null);
     const t = topic.trim();
-    if (!t) return;
+    const k = geminiApiKey.trim();
+    if (!t || !k) return;
 
     try {
       if (!db) {
@@ -45,10 +85,37 @@ function TeacherInner({
         setCreating(false);
         return;
       }
+
       setCreating(true);
+      const client = new GoogleGenerativeAI(k);
+      const model = client.getGenerativeModel({ model: geminiModel });
+      const prompt = `
+너는 교육용 퀴즈 생성기다.
+아래 주제에 대해 사지선다형 객관식 퀴즈 ${questionCount}개를 생성해라.
+응답은 JSON만 출력한다.
+{
+  "questions": [
+    {
+      "id": "q1",
+      "prompt": "질문",
+      "options": ["보기1","보기2","보기3","보기4"],
+      "correctOptionIndex": 0
+    }
+  ]
+}
+주제: ${t}
+`.trim();
+
+      const result = await model.generateContent(prompt);
+      const jsonText = stripCodeFences(result.response.text());
+      const parsed = JSON.parse(jsonText) as unknown;
+      const data = QuizResponseSchema.parse(parsed);
+      const questions = data.questions as QuizQuestion[];
+
       const docRef = await addDoc(collection(db, "quizSessions"), {
         topic: t,
         questionCount,
+        questions,
         createdAt: serverTimestamp(),
         createdByNickname: nickname,
         createdByUid: uid,
@@ -80,6 +147,23 @@ function TeacherInner({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                Gemini API Key
+              </label>
+              <input
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-zinc-900 dark:text-zinc-50 outline-none focus:ring-2 focus:ring-zinc-900/20"
+                placeholder="AIza..."
+                type="password"
+                autoComplete="off"
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                키는 저장되지 않고, 이 브라우저 요청에서만 퀴즈 생성에 사용됩니다.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
                 퀴즈 주제
               </label>
               <input
@@ -104,6 +188,20 @@ function TeacherInner({
                     {n}문항
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                Gemini 모델
+              </label>
+              <select
+                value={geminiModel}
+                onChange={(e) => setGeminiModel(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-zinc-900 dark:text-zinc-50 outline-none"
+              >
+                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                <option value="gemini-3.0-flash">gemini-3.0-flash</option>
               </select>
             </div>
 

@@ -7,9 +7,9 @@
 - 리더보드: `completed` 상태의 응시를 기준으로 실시간 상위 랭킹 표시
 
 ## 배포/실행 모드
-- 이 버전은 Firebase **Spark + Hosting(정적)** 기준입니다.
-- Next.js 서버 API를 사용하지 않고 브라우저에서 Gemini를 직접 호출합니다.
-- 따라서 Gemini 키는 `NEXT_PUBLIC_GEMINI_API_KEY`로 전달되며 브라우저에 노출됩니다(데모용).
+- Firebase **Spark + Hosting(정적)** 기준입니다.
+- 서버 API 없이 동작하며, Gemini 호출은 **교수자 페이지에서 직접 입력한 키**로만 수행합니다.
+- API 키는 코드/환경변수에 하드코딩하지 않습니다.
 
 ## 로컬 실행
 
@@ -17,10 +17,6 @@
 프로젝트 루트에 `.env.local`을 만들고 아래 값을 채우세요.
 
 예시는 `.env.local.example`을 참고하세요.
-
-필수:
-- `NEXT_PUBLIC_GEMINI_API_KEY`
-- `NEXT_PUBLIC_GEMINI_MODEL` (권장: `gemini-2.5-flash` 또는 `gemini-3.0-flash`)
 
 Firebase (클라이언트 전용, `NEXT_PUBLIC_*`):
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
@@ -56,6 +52,7 @@ npx firebase-tools deploy --only hosting
 ```
 
 ## 참고
-- Gemini 호출 및 퀴즈 생성은 `src/app/learner/page.tsx`에서 브라우저에서 직접 수행합니다.
+- Gemini 호출 및 퀴즈 생성은 `src/app/teacher/page.tsx`에서 교수자가 키를 입력했을 때 수행합니다.
+- 생성된 문제는 `quizSessions` 문서에 저장되고, 학습자는 저장된 문제를 응시합니다.
 - 리더보드는 `src/components/Leaderboard.tsx`에서 Firestore `onSnapshot`으로 실시간 반영합니다.
 
